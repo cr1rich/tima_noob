@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Квадраты чисел 10–30 — бесконечный тест</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: radial-gradient(circle at 20% 0%, #2b3a67 0%, #141a2e 45%, #0b0e18 100%);
+    color: #eef1f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 14px;
+  }
+
+  .app { width: 100%; max-width: 640px; }
+
+  h1 {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: .4px;
+    text-align: center;
+    color: #93a7d6;
+    margin: 0 0 16px;
+    text-transform: uppercase;
+  }
+
+  /* ---------- Статистика ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .stat {
+    background: rgba(255,255,255,.055);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 12px;
+    padding: 8px 4px 7px;
+    text-align: center;
+  }
+
+  .stat span {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .stat small {
+    display: block;
+    font-size: 10px;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: #7f8db3;
+    margin-top: 2px;
+  }
+
+  #statCorrect { color: #55d68b; }
+  #statWrong   { color: #ff7b72; }
+  #statStreak  { color: #ffd166; }
+  #statBest    { color: #78b3ff; }
+
+  /* ---------- Карточка ---------- */
+  .card {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.11);
+    border-radius: 24px;
+    padding: 24px 22px 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 24px 60px rgba(0,0,0,.45);
+  }
+
+  .prompt {
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    color: #8b9ac4;
+    margin-bottom: 6px;
+    min-height: 17px;
+  }
+
+  .expr {
+    text-align: center;
+    min-height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .radical {
+    font-size: clamp(46px, 13vw, 68px);
+    display: inline-flex;
+    align-items: flex-start;
+  }
+
+  .radicand {
+    display: inline-block;
+    border-top: 4px solid currentColor;
+    padding: 0 .1em;
+    margin-left: .02em;
+    transform: translateY(.07em);
+  }
+
+  .plain {
+    font-size: clamp(54px, 16vw, 84px);
+    color: #ffd166;
+  }
+
+  /* ---------- Варианты ---------- */
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 11px;
+  }
+
+  .option {
+    position: relative;
+    font-family: inherit;
+    font-size: clamp(21px, 5.4vw, 27px);
+    font-weight: 700;
+    color: #eef1f8;
+    background: rgba(255,255,255,.075);
+    border: 1.5px solid rgba(255,255,255,.14);
+    border-radius: 15px;
+    padding: 18px 10px 16px;
+    cursor: pointer;
+    transition: background .16s, border-color .16s, transform .1s;
+    user-select: none;
+  }
+
+  .option:hover:not(:disabled) {
+    background: rgba(255,255,255,.16);
+    border-color: rgba(255,255,255,.32);
+  }
+
+  .option:active:not(:disabled) { transform: scale(.97); }
+
+  .option:disabled { cursor: default; }
+
+  .option.dim { opacity: .45; }
+
+  .option.correct {
+    background: rgba(46, 190, 110, .28);
+    border-color: #2ebe6e;
+    color: #b7ffd8;
+  }
+
+  .option.wrong {
+    background: rgba(224, 70, 70, .28);
+    border-color: #e04646;
+    color: #ffc4c0;
+  }
+
+  .key {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,.35);
+    letter-spacing: .5px;
+  }
+
+  /* ---------- Обратная связь ---------- */
+  .feedback {
+    text-align: center;
+    min-height: 24px;
+    margin-top: 14px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .feedback.ok  { color: #55d68b; }
+  .feedback.err { color: #ff7b72; }
+
+  .footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 16px;
+  }
+
+  .reset {
+    font-family: inherit;
+    font-size: 13px;
+    letter-spacing: .5px;
+    color: #8b9ac4;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 10px;
+    padding: 9px 20px;
+    cursor: pointer;
+    transition: .15s;
+  }
+
+  .reset:hover { color: #eef1f8; border-color: rgba(255,255,255,.35); }
+
+  @media (max-width: 380px) {
+    .card { padding: 20px 14px 16px; border-radius: 18px; }
+    .option { padding: 15px 6px 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>Квадраты чисел 10 – 30</h1>
+
+  <div class="stats">
+    <div class="stat"><span id="statCorrect">0</span><small>верно</small></div>
+    <div class="stat"><span id="statWrong">0</span><small>ошибок</small></div>
+    <div class="stat"><span id="statStreak">0</span><small>серия</small></div>
+    <div class="stat"><span id="statBest">0</span><small>рекорд</small></div>
+  </div>
+
+  <div class="card">
+    <div class="prompt" id="prompt"></div>
+    <div class="expr" id="expr"></div>
+    <div class="options" id="options"></div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="footer">
+    <button class="reset" id="reset">Сбросить счёт</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const MIN = 10;
+  const MAX = 30;
+
+  const els = {
+    prompt:   document.getElementById('prompt'),
+    expr:     document.getElementById('expr'),
+    options:  document.getElementById('options'),
+    feedback: document.getElementById('feedback'),
+    correct:  document.getElementById('statCorrect'),
+    wrong:    document.getElementById('statWrong'),
+    streak:   document.getElementById('statStreak'),
+    best:     document.getElementById('statBest')
+  };
+
+  const state = {
+    n: 0,
+    type: 'sqrt',
+    answer: 0,
+    options: [],
+    locked: false,
+    timer: null,
+    correct: 0,
+    wrong: 0,
+    streak: 0,
+    best: 0
+  };
+
+  /* ---------- утилиты ---------- */
+
+  function randInt(a, b) {
+    return a + Math.floor(Math.random() * (b - a + 1));
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  /**
+   * Строит 4 уникальных варианта: правильный + 3 отвлекающих.
+   * @param {number} correct  правильный ответ
+   * @param {number[]} near   «похожие» числа (соседи) — берутся в первую очередь
+   * @param {number} min      минимум диапазона
+   * @param {number} max      максимум диапазона
+   * @param {function} fallback  генератор случайного числа в диапазоне
+   */
+  function buildOptions(correct, near, min, max, fallback) {
+    const set = new Set([correct]);
+
+    for (const v of shuffle(near.slice())) {
+      if (set.size >= 4) break;
+      if (v >= min && v <= max && v !== correct) set.add(v);
+    }
+
+    let guard = 0;
+    while (set.size < 4 && guard++ < 300) {
+      const v = fallback();
+      if (v >= min && v <= max && v !== correct) set.add(v);
+    }
+
+    return shuffle(Array.from(set));
+  }
+
+  /* ---------- генерация вопроса ---------- */
+
+  function makeQuestion() {
+    clearTimeout(state.timer);
+    state.locked = false;
+
+    const n = randInt(MIN, MAX);
+    state.n = n;
+
+    // 50 / 50: извлечение корня или возведение в квадрат
+    state.type = Math.random() < 0.5 ? 'sqrt' : 'square';
+
+    let options;
+
+    if (state.type === 'sqrt') {
+      // Показываем √(n²), ответ — само число n
+      state.answer = n;
+      options = buildOptions(
+        n,
+        [n - 1, n + 1, n - 2, n + 2, n - 3, n + 3],
+        MIN, MAX,
+        () => randInt(MIN, MAX)
+      );
+    } else {
+      // Показываем n, ответ — n²
+      state.answer = n * n;
+      options = buildOptions(
+        n * n,
+        [(n - 1) ** 2, (n + 1) ** 2, (n - 2) ** 2, (n + 2) ** 2, (n - 3) ** 2, (n + 3) ** 2],
+        MIN * MIN, MAX * MAX,
+        () => randInt(MIN, MAX) ** 2
+      );
+    }
+
+    state.options = options;
+    paint();
+  }
+
+  /* ---------- отрисовка ---------- */
+
+  function paint() {
+    const n = state.n;
+
+    if (state.type === 'sqrt') {
+      els.prompt.textContent = 'Извлеки квадратный корень';
+      els.expr.innerHTML = '<span class="radical">√<span class="radicand">' + (n * n) + '</span></span>';
+    } else {
+      els.prompt.textContent = 'Возведи число в квадрат';
+      els.expr.innerHTML = '<span class="plain">' + n + '</span>';
+    }
+
+    els.options.innerHTML = '';
+
+    state.options.forEach(function (val, i) {
+      const btn = document.createElement('button');
+      btn.className = 'option';
+      btn.dataset.val = val;
+      btn.innerHTML = '<span class="key">' + (i + 1) + '</span>' + val;
+      btn.addEventListener('click', function () { answer(btn, val); });
+      els.options.appendChild(btn);
+    });
+
+    els.feedback.textContent = '';
+    els.feedback.className = 'feedback';
+  }
+
+  /* ---------- проверка ответа ---------- */
+
+  function answer(btn, val) {
+    if (state.locked) return;
+    state.locked = true;
+
+    const isRight = val === state.answer;
+
+    Array.prototype.forEach.call(els.options.children, function (b) {
+      b.disabled = true;
+      const v = Number(b.dataset.val);
+      if (v === state.answer) {
+        b.classList.add('correct');
+      } else if (b === btn) {
+        b.classList.add('wrong');
+      } else {
+        b.classList.add('dim');
+      }
+    });
+
+    if (isRight) {
+      state.correct++;
+      state.streak++;
+      if (state.streak > state.best) state.best = state.streak;
+      els.feedback.textContent = 'Верно! +1';
+      els.feedback.className = 'feedback ok';
+    } else {
+      state.wrong++;
+      state.streak = 0;
+      els.feedback.textContent = 'Ошибка. Правильный ответ: ' + state.answer;
+      els.feedback.className = 'feedback err';
+    }
+
+    updateStats();
+
+    state.timer = setTimeout(makeQuestion, isRight ? 700 : 1500);
+  }
+
+  function updateStats() {
+    els.correct.textContent = state.correct;
+    els.wrong.textContent   = state.wrong;
+    els.streak.textContent  = state.streak;
+    els.best.textContent    = state.best;
+  }
+
+  /* ---------- клавиатура 1–4 ---------- */
+
+  document.addEventListener('keydown', function (e) {
+    const idx = ['1', '2', '3', '4'].indexOf(e.key);
+    if (idx === -1) return;
+    const btn = els.options.children[idx];
+    if (btn && !btn.disabled) btn.click();
+  });
+
+  /* ---------- сброс ---------- */
+
+  document.getElementById('reset').addEventListener('click', function () {
+    state.correct = 0;
+    state.wrong = 0;
+    state.streak = 0;
+    state.best = 0;
+    updateStats();
+    makeQuestion();
+  });
+
+  /* ---------- старт ---------- */
+
+  updateStats();
+  makeQuestion();
+})();
+</script>
+
+</body>
+</html>
