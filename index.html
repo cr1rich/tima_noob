@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Квадраты чисел 10–30 — бесконечный тест</title>
+<title>Квадраты и корни 10–30 — бесконечный тест</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -31,7 +31,6 @@
     text-transform: uppercase;
   }
 
-  /* ---------- Статистика ---------- */
   .stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -68,7 +67,6 @@
   #statStreak  { color: #ffd166; }
   #statBest    { color: #78b3ff; }
 
-  /* ---------- Карточка ---------- */
   .card {
     background: rgba(255,255,255,.06);
     border: 1px solid rgba(255,255,255,.11);
@@ -99,26 +97,16 @@
     line-height: 1;
   }
 
-  .radical {
-    font-size: clamp(46px, 13vw, 68px);
-    display: inline-flex;
-    align-items: flex-start;
-  }
-
-  .radicand {
-    display: inline-block;
-    border-top: 4px solid currentColor;
-    padding: 0 .1em;
-    margin-left: .02em;
-    transform: translateY(.07em);
-  }
-
   .plain {
     font-size: clamp(54px, 16vw, 84px);
     color: #ffd166;
   }
 
-  /* ---------- Варианты ---------- */
+  .secret-title {
+    font-size: clamp(28px, 8vw, 42px);
+    color: #ffd166;
+  }
+
   .options {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -146,9 +134,7 @@
   }
 
   .option:active:not(:disabled) { transform: scale(.97); }
-
   .option:disabled { cursor: default; }
-
   .option.dim { opacity: .45; }
 
   .option.correct {
@@ -173,7 +159,61 @@
     letter-spacing: .5px;
   }
 
-  /* ---------- Обратная связь ---------- */
+  /* Поле ввода */
+  .input-row {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 10px;
+  }
+
+  .answer-input {
+    flex: 1;
+    min-width: 0;
+    font-family: inherit;
+    font-size: 24px;
+    font-weight: 700;
+    text-align: center;
+    color: #eef1f8;
+    background: rgba(255,255,255,.075);
+    border: 1.5px solid rgba(255,255,255,.14);
+    border-radius: 15px;
+    padding: 16px 10px;
+    outline: none;
+    transition: border-color .16s, background .16s;
+  }
+
+  .answer-input:focus {
+    border-color: #78b3ff;
+    background: rgba(120,179,255,.10);
+  }
+
+  .answer-input.correct {
+    border-color: #2ebe6e;
+    background: rgba(46,190,110,.18);
+  }
+
+  .answer-input.wrong {
+    border-color: #e04646;
+    background: rgba(224,70,70,.18);
+  }
+
+  .submit-btn {
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    color: #0b0e18;
+    background: #ffd166;
+    border: none;
+    border-radius: 15px;
+    padding: 0 22px;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+  }
+
+  .submit-btn:hover:not(:disabled) { opacity: .9; }
+  .submit-btn:active:not(:disabled) { transform: scale(.97); }
+  .submit-btn:disabled { opacity: .45; cursor: default; }
+
   .feedback {
     text-align: center;
     min-height: 24px;
@@ -209,13 +249,14 @@
   @media (max-width: 380px) {
     .card { padding: 20px 14px 16px; border-radius: 18px; }
     .option { padding: 15px 6px 13px; }
+    .submit-btn { padding: 0 16px; font-size: 14px; }
   }
 </style>
 </head>
 <body>
 
 <div class="app">
-  <h1>Квадраты чисел 10 – 30</h1>
+  <h1>Квадраты и корни · 10–30</h1>
 
   <div class="stats">
     <div class="stat"><span id="statCorrect">0</span><small>верно</small></div>
@@ -255,8 +296,8 @@
   };
 
   const state = {
+    mode: 'rootMC', // rootMC | squareInput | secret
     n: 0,
-    type: 'sqrt',
     answer: 0,
     options: [],
     locked: false,
@@ -266,8 +307,6 @@
     streak: 0,
     best: 0
   };
-
-  /* ---------- утилиты ---------- */
 
   function randInt(a, b) {
     return a + Math.floor(Math.random() * (b - a + 1));
@@ -281,15 +320,7 @@
     return arr;
   }
 
-  /**
-   * Строит 4 уникальных варианта: правильный + 3 отвлекающих.
-   * @param {number} correct  правильный ответ
-   * @param {number[]} near   «похожие» числа (соседи) — берутся в первую очередь
-   * @param {number} min      минимум диапазона
-   * @param {number} max      максимум диапазона
-   * @param {function} fallback  генератор случайного числа в диапазоне
-   */
-  function buildOptions(correct, near, min, max, fallback) {
+  function buildOptions(correct, near, min, max) {
     const set = new Set([correct]);
 
     for (const v of shuffle(near.slice())) {
@@ -299,64 +330,54 @@
 
     let guard = 0;
     while (set.size < 4 && guard++ < 300) {
-      const v = fallback();
-      if (v >= min && v <= max && v !== correct) set.add(v);
+      const v = randInt(min, max);
+      if (v !== correct) set.add(v);
     }
 
     return shuffle(Array.from(set));
   }
 
-  /* ---------- генерация вопроса ---------- */
-
   function makeQuestion() {
     clearTimeout(state.timer);
     state.locked = false;
 
-    const n = randInt(MIN, MAX);
-    state.n = n;
-
-    // 50 / 50: извлечение корня или возведение в квадрат
-    state.type = Math.random() < 0.5 ? 'sqrt' : 'square';
-
-    let options;
-
-    if (state.type === 'sqrt') {
-      // Показываем √(n²), ответ — само число n
-      state.answer = n;
-      options = buildOptions(
-        n,
-        [n - 1, n + 1, n - 2, n + 2, n - 3, n + 3],
-        MIN, MAX,
-        () => randInt(MIN, MAX)
-      );
-    } else {
-      // Показываем n, ответ — n²
-      state.answer = n * n;
-      options = buildOptions(
-        n * n,
-        [(n - 1) ** 2, (n + 1) ** 2, (n - 2) ** 2, (n + 2) ** 2, (n - 3) ** 2, (n + 3) ** 2],
-        MIN * MIN, MAX * MAX,
-        () => randInt(MIN, MAX) ** 2
-      );
+    // Секретный вопрос — шанс 1%
+    if (Math.random() < 0.01) {
+      makeSecretQuestion();
+      return;
     }
 
-    state.options = options;
-    paint();
+    state.n = randInt(MIN, MAX);
+
+    // 50 / 50:
+    // 1) сверху квадрат числа, снизу варианты корня
+    // 2) сверху число, снизу поле для ввода квадрата
+    if (Math.random() < 0.5) {
+      state.mode = 'rootMC';
+      state.answer = state.n;
+      state.options = buildOptions(
+        state.n,
+        [state.n - 1, state.n + 1, state.n - 2, state.n + 2, state.n - 3, state.n + 3],
+        MIN, MAX
+      );
+      paintRootMC();
+    } else {
+      state.mode = 'squareInput';
+      state.answer = state.n * state.n;
+      paintSquareInput();
+    }
   }
 
-  /* ---------- отрисовка ---------- */
+  function makeSecretQuestion() {
+    state.mode = 'secret';
+    state.answer = 'Кабельджон';
+    state.options = shuffle(['Тимофей', 'Кабельджон']);
+    paintSecret();
+  }
 
-  function paint() {
-    const n = state.n;
-
-    if (state.type === 'sqrt') {
-      els.prompt.textContent = 'Извлеки квадратный корень';
-      els.expr.innerHTML = '<span class="radical">√<span class="radicand">' + (n * n) + '</span></span>';
-    } else {
-      els.prompt.textContent = 'Возведи число в квадрат';
-      els.expr.innerHTML = '<span class="plain">' + n + '</span>';
-    }
-
+  function paintRootMC() {
+    els.prompt.textContent = 'Выбери корень числа';
+    els.expr.innerHTML = '<span class="plain">' + (state.n * state.n) + '</span>';
     els.options.innerHTML = '';
 
     state.options.forEach(function (val, i) {
@@ -364,7 +385,7 @@
       btn.className = 'option';
       btn.dataset.val = val;
       btn.innerHTML = '<span class="key">' + (i + 1) + '</span>' + val;
-      btn.addEventListener('click', function () { answer(btn, val); });
+      btn.addEventListener('click', function () { evaluate(val, btn); });
       els.options.appendChild(btn);
     });
 
@@ -372,42 +393,132 @@
     els.feedback.className = 'feedback';
   }
 
-  /* ---------- проверка ответа ---------- */
+  function paintSquareInput() {
+    els.prompt.textContent = 'Введи квадрат числа';
+    els.expr.innerHTML = '<span class="plain">' + state.n + '</span>';
+    els.options.innerHTML = '';
 
-  function answer(btn, val) {
+    const row = document.createElement('div');
+    row.className = 'input-row';
+
+    const input = document.createElement('input');
+    input.className = 'answer-input';
+    input.id = 'answerInput';
+    input.type = 'text';
+    input.inputMode = 'numeric';
+    input.autocomplete = 'off';
+    input.placeholder = 'Ответ';
+
+    const btn = document.createElement('button');
+    btn.className = 'submit-btn';
+    btn.textContent = 'Проверить';
+
+    function submit() {
+      if (state.locked) return;
+      const raw = input.value.trim().replace(',', '.');
+      if (raw === '') {
+        els.feedback.textContent = 'Введи число';
+        els.feedback.className = 'feedback err';
+        return;
+      }
+      const val = Number(raw);
+      if (!Number.isFinite(val)) {
+        els.feedback.textContent = 'Нужно ввести число';
+        els.feedback.className = 'feedback err';
+        return;
+      }
+      evaluate(val, btn, input);
+    }
+
+    btn.addEventListener('click', submit);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submit();
+      }
+    });
+
+    row.appendChild(input);
+    row.appendChild(btn);
+    els.options.appendChild(row);
+
+    els.feedback.textContent = '';
+    els.feedback.className = 'feedback';
+
+    setTimeout(function () { input.focus(); }, 30);
+  }
+
+  function paintSecret() {
+    els.prompt.textContent = 'Секретный вопрос · шанс 1%';
+    els.expr.innerHTML = '<span class="secret-title">Кто победит?</span>';
+    els.options.innerHTML = '';
+
+    state.options.forEach(function (val, i) {
+      const btn = document.createElement('button');
+      btn.className = 'option';
+      btn.dataset.val = val;
+      btn.innerHTML = '<span class="key">' + (i + 1) + '</span>' + val;
+      btn.addEventListener('click', function () { evaluate(val, btn); });
+      els.options.appendChild(btn);
+    });
+
+    els.feedback.textContent = '';
+    els.feedback.className = 'feedback';
+  }
+
+  function evaluate(val, clickedBtn, inputEl) {
     if (state.locked) return;
     state.locked = true;
 
-    const isRight = val === state.answer;
+    const isRight = String(val) === String(state.answer);
 
-    Array.prototype.forEach.call(els.options.children, function (b) {
-      b.disabled = true;
-      const v = Number(b.dataset.val);
-      if (v === state.answer) {
-        b.classList.add('correct');
-      } else if (b === btn) {
-        b.classList.add('wrong');
-      } else {
-        b.classList.add('dim');
+    if (state.mode === 'squareInput') {
+      if (inputEl) {
+        inputEl.disabled = true;
+        inputEl.classList.add(isRight ? 'correct' : 'wrong');
       }
-    });
+      if (clickedBtn) clickedBtn.disabled = true;
+    } else {
+      Array.prototype.forEach.call(els.options.children, function (b) {
+        if (!b.classList.contains('option')) return;
+        b.disabled = true;
+        const v = b.dataset.val;
+        if (String(v) === String(state.answer)) {
+          b.classList.add('correct');
+        } else if (b === clickedBtn) {
+          b.classList.add('wrong');
+        } else {
+          b.classList.add('dim');
+        }
+      });
+    }
 
     if (isRight) {
       state.correct++;
       state.streak++;
       if (state.streak > state.best) state.best = state.streak;
-      els.feedback.textContent = 'Верно! +1';
+
+      if (state.mode === 'secret') {
+        els.feedback.textContent = 'Верно! Кабельджон побеждает.';
+      } else {
+        els.feedback.textContent = 'Верно! +1';
+      }
       els.feedback.className = 'feedback ok';
     } else {
       state.wrong++;
       state.streak = 0;
-      els.feedback.textContent = 'Ошибка. Правильный ответ: ' + state.answer;
+
+      if (state.mode === 'secret') {
+        els.feedback.textContent = 'Ошибка. Побеждает Кабельджон.';
+      } else {
+        els.feedback.textContent = 'Ошибка. Правильный ответ: ' + state.answer;
+      }
       els.feedback.className = 'feedback err';
     }
 
     updateStats();
 
-    state.timer = setTimeout(makeQuestion, isRight ? 700 : 1500);
+    state.timer = setTimeout(makeQuestion, isRight ? 750 : 1600);
   }
 
   function updateStats() {
@@ -417,18 +528,21 @@
     els.best.textContent    = state.best;
   }
 
-  /* ---------- клавиатура 1–4 ---------- */
-
+  // Клавиши 1–4 для вариантов, Enter для поля ввода
   document.addEventListener('keydown', function (e) {
+    if (e.target && e.target.tagName === 'INPUT') return;
+
     const idx = ['1', '2', '3', '4'].indexOf(e.key);
     if (idx === -1) return;
+
     const btn = els.options.children[idx];
-    if (btn && !btn.disabled) btn.click();
+    if (btn && btn.classList.contains('option') && !btn.disabled) {
+      btn.click();
+    }
   });
 
-  /* ---------- сброс ---------- */
-
   document.getElementById('reset').addEventListener('click', function () {
+    clearTimeout(state.timer);
     state.correct = 0;
     state.wrong = 0;
     state.streak = 0;
@@ -436,8 +550,6 @@
     updateStats();
     makeQuestion();
   });
-
-  /* ---------- старт ---------- */
 
   updateStats();
   makeQuestion();
